@@ -20,7 +20,7 @@ EOF
 if [[ ${1-} == "--install-server" ]]; then
 	echo "Installing remote deploy helper on $REMOTE_HOST..."
 
-	ssh -i "$SSH_KEY" "$REMOTE_HOST" bash -s <<'REMOTE'
+	ssh -i "$SSH_KEY" "$REMOTE_HOST" bash -s <<REMOTE
 set -euo pipefail
 sudo mkdir -p "${REMOTE_APP_DIR}"
 if [ ! -d "${REMOTE_APP_DIR}/.git" ]; then
@@ -33,7 +33,7 @@ else
 	(cd "${REMOTE_APP_DIR}" && git pull)
 fi
 
-cat > /tmp/deploy_sotachaser_remote.sh <<'SCRIPT'
+cat > /tmp/deploy_sotachaser_remote.sh <<SCRIPT
 #!/usr/bin/env bash
 set -euo pipefail
 cd "${REMOTE_APP_DIR}"

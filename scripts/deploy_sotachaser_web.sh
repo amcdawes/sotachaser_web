@@ -73,7 +73,7 @@ fi
 echo "Building locally with trunk..."
 trunk build --release
 
-echo "Pushing dist/ to $REMOTE_HOST:$REMOTE_WEB_ROOT"
-rsync -avz --delete -e "ssh -i $SSH_KEY" dist/ "$REMOTE_HOST:$REMOTE_WEB_ROOT/"
+echo "Pushing dist/ to $REMOTE_HOST:$REMOTE_WEB_ROOT (using sudo on remote)"
+rsync -avz --delete -e "ssh -i $SSH_KEY" --rsync-path="sudo rsync" dist/ "$REMOTE_HOST:$REMOTE_WEB_ROOT/"
 
 echo "Deploy complete: https://sotachaser.daweslab.com"

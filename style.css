@@ -1,0 +1,92 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 24px;
+  background: #f7f7f8;
+  color: #111;
+}
+
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid #e6e6e9;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+button {
+  border: 1px solid #d0d0d7;
+  background: #fafafa;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.header input[type="number"] {
+  border: 1px solid #d0d0d7;
+  background: #fff;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  width: 90px;
+}
+
+button.connected {
+  background: #d6f5d6;
+  border-color: #9cd59c;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th, td {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+th.freq,
+td.freq {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+tr:hover {
+  background: #fafafa;
+}
+
+tbody tr:nth-child(even) {
+  background: #f2f3f5;
+}
+
+.status {
+  margin-left: auto;
+  font-size: 12px;
+  color: #555;
+}
+
+.tuned {
+  color: #0a7d0a;
+  font-weight: 600;
+}

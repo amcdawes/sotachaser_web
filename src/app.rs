@@ -2,10 +2,12 @@ use crate::serial::SerialManager;
 use gloo_net::http::Request;
 use gloo_timers::callback::Interval;
 use serde::Deserialize;
-use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew::events::InputEvent;
 use web_sys::{HtmlInputElement, Storage};
+use wasm_bindgen_futures::spawn_local;
+use crate::serial::KenwoodDriver;
+use wasm_bindgen::JsValue;
 
 const SPOTS_URL: &str = "https://api2.sota.org.uk/api/spots/20/%7Bfilter%7D?filter=all";
 const REFRESH_MS: u32 = 5 * 60 * 1000;
@@ -98,6 +100,10 @@ pub fn app() -> Html {
     let serial = use_state(SerialManager::new);
     let min_freq = use_state(|| 7.0_f64);
     let max_freq = use_state(|| 28.0_f64);
+    let show_settings = use_state(|| false);
+    let raw_cmd = use_state(|| "".to_string());
+    let response_log = use_state(Vec::<String>::new);
+    let last_rx = use_state(|| "".to_string());
 
     {
         let min_freq = min_freq.clone();
@@ -245,6 +251,191 @@ pub fn app() -> Html {
         })
     };
 
+    use gloo_timers::future::TimeoutFuture;
+
+    let on_toggle_settings = {
+        let show_settings = show_settings.clone();
+        let serial = serial.clone();
+        let response_log = response_log.clone();
+        let last_rx_handle = last_rx.clone();
+        Callback::from(move |_| {
+            let currently = *show_settings;
+            // open settings
+            if !currently {
+                show_settings.set(true);
+                // start buffer drain while settings are open
+                serial.spawn_buffer_drain();
+
+                // start background read loop using the persistent reader
+                let show_settings_clone = show_settings.clone();
+                let serial_clone = serial.clone();
+                let response_log_clone = response_log.clone();
+                let last_rx_clone = last_rx_handle.clone();
+                spawn_local(async move {
+                    while *show_settings_clone {
+                        match serial_clone.read_from_persistent_reader().await {
+                            Ok(resp) if !resp.is_empty() => {
+                                // push to response log and update visible last_rx
+                                let mut v = (*response_log_clone).clone();
+                                let entry = format!("RX: {}", resp);
+                                web_sys::console::log_1(&JsValue::from_str(&format!("app: pushing {}", entry)));
+                                v.push(entry.clone());
+                                response_log_clone.set(v);
+                                last_rx_clone.set(entry.clone());
+                                // Log state sizes to help diagnose why DOM isn't updating
+                                web_sys::console::log_1(&JsValue::from_str(&format!(
+                                    "app: response_log length = {} last_rx = {}",
+                                    (*response_log_clone).len(), (*last_rx_clone).clone()
+                                )));
+                            }
+                            _ => {
+                                // no data this iteration
+                            }
+                        }
+                        TimeoutFuture::new(200).await;
+                    }
+                });
+            } else {
+                // closing settings: stop the background reader and keep port open
+                show_settings.set(false);
+                // stop drain immediately, then cancel the reader
+                serial.stop_buffer_drain();
+                let serial = serial.clone();
+                spawn_local(async move {
+                    let _ = serial.stop_reader().await;
+                });
+            }
+        })
+    };
+
+    let on_send_raw = {
+        let raw_cmd = raw_cmd.clone();
+        let serial = serial.clone();
+        let status = status.clone();
+        Callback::from(move |_| {
+            let cmd = (*raw_cmd).clone();
+            let serial = serial.clone();
+            let status = status.clone();
+            spawn_local(async move {
+                if cmd.is_empty() {
+                    status.set("Empty raw command".to_string());
+                    return;
+                }
+                match KenwoodDriver::send_raw(&*serial, &cmd).await {
+                    Ok(()) => status.set("Raw command sent".to_string()),
+                    Err(e) => status.set(format!("Send failed: {:?}", e)),
+                }
+            });
+        })
+    };
+
+    let on_raw_input = {
+        let raw_cmd = raw_cmd.clone();
+        Callback::from(move |e: InputEvent| {
+            let input: HtmlInputElement = e.target_unchecked_into();
+            raw_cmd.set(input.value());
+        })
+    };
+
+    let on_test_14062 = {
+        let serial = serial.clone();
+        let status = status.clone();
+        Callback::from(move |_| {
+            let serial = serial.clone();
+            let status = status.clone();
+            spawn_local(async move {
+                match KenwoodDriver::test_tune(&*serial).await {
+                    Ok(()) => status.set("14.062 CW test tune sent".to_string()),
+                    Err(e) => status.set(format!("Test tune failed: {:?}", e)),
+                }
+            });
+        })
+    };
+
+    let on_vfo_a = {
+        let serial = serial.clone();
+        let status = status.clone();
+        let response_log = response_log.clone();
+        Callback::from(move |_| {
+            let serial = serial.clone();
+            let status = status.clone();
+            let response_log = response_log.clone();
+            spawn_local(async move {
+                match KenwoodDriver::set_vfo_a(&*serial).await {
+                    Ok(()) => status.set("VFO A selected".to_string()),
+                    Err(e) => status.set(format!("VFO A failed: {:?}", e)),
+                }
+                // try read
+                // response will be streamed to the log by the background reader
+            });
+        })
+    };
+
+    let on_vfo_b = {
+        let serial = serial.clone();
+        let status = status.clone();
+        let response_log = response_log.clone();
+        Callback::from(move |_| {
+            let serial = serial.clone();
+            let status = status.clone();
+            let response_log = response_log.clone();
+            spawn_local(async move {
+                match KenwoodDriver::set_vfo_b(&*serial).await {
+                    Ok(()) => status.set("VFO B selected".to_string()),
+                    Err(e) => status.set(format!("VFO B failed: {:?}", e)),
+                }
+                // response will be streamed to the log by the background reader
+            });
+        })
+    };
+
+    let on_set_mode = {
+        let serial = serial.clone();
+        let status = status.clone();
+        let response_log = response_log.clone();
+        Callback::from(move |mode: String| {
+            let serial = serial.clone();
+            let status = status.clone();
+            let response_log = response_log.clone();
+            spawn_local(async move {
+                match KenwoodDriver::set_mode(&*serial, &mode).await {
+                    Ok(()) => status.set(format!("Mode set: {}", mode)),
+                    Err(e) => status.set(format!("Set mode failed: {:?}", e)),
+                }
+                // response will be streamed to the log by the background reader
+            });
+        })
+    };
+
+    let on_query_freq = {
+        let serial = serial.clone();
+        let status = status.clone();
+        let response_log = response_log.clone();
+        let last_rx = last_rx.clone();
+        Callback::from(move |_| {
+            let serial = serial.clone();
+            let status = status.clone();
+            let response_log = response_log.clone();
+            let last_rx = last_rx.clone();
+            spawn_local(async move {
+                match KenwoodDriver::query_frequency(&*serial).await {
+                    Ok(resp) => {
+                        status.set("Queried frequency".to_string());
+                        let mut v = (*response_log).clone();
+                        let entry = format!("RX: {}", resp);
+                        web_sys::console::log_1(&JsValue::from_str(&format!("app: push query resp {}", entry)));
+                        v.push(entry.clone());
+                        response_log.set(v);
+                        last_rx.set(entry);
+                    }
+                    Err(e) => status.set(format!("Query failed: {:?}", e)),
+                }
+            });
+        })
+    };
+
+    // explicit on-demand read removed; background stream supplies responses
+
     let connect_class = if *connected { "connected" } else { "" };
 
     let on_min_change = {
@@ -278,6 +469,7 @@ pub fn app() -> Html {
     html! {
         <div class="app">
             <div class="header">
+                <button class="settings" onclick={on_toggle_settings}>{"⚙"}</button>
                 <button class={connect_class} onclick={on_connect} disabled={*connected}>{
                     if *connected { "Connected" } else { "Connect Serial" }
                 }</button>
@@ -300,8 +492,65 @@ pub fn app() -> Html {
                         oninput={on_max_change}
                     />
                 </label>
-                <div class="status">{(*status).clone()}</div>
+                        <div class="status">{(*status).clone()}</div>
             </div>
+            { if *show_settings {
+                html! {
+                    <div class="settings-panel">
+                        <h3>{"Settings"}</h3>
+                        <label>{"Raw CAT command (text): "}
+                            <input type="text" value={(*raw_cmd).clone()} oninput={on_raw_input} />
+                        </label>
+                        <button onclick={on_send_raw}>{"Send Raw"}</button>
+                        <div class="response-log">
+                            <h4>{"Response Log"}</h4>
+                            <div class="last-rx">{ format!("Last RX: {}", (*last_rx).clone()) }</div>
+                            { for (*response_log).iter().map(|line| html!{ <div class="resp">{ line.clone() }</div> }) }
+                        </div>
+                        <hr/>
+                        <div class="std-commands">
+                            <h4>{"Standard Commands"}</h4>
+                            <button onclick={on_vfo_a}>{"VFO A"}</button>
+                            <button onclick={on_vfo_b}>{"VFO B"}</button>
+                            <button onclick={on_query_freq}>{"Query Frequency"}</button>
+                            <div class="modes">
+                                <button onclick={
+                                    {
+                                        let cb = on_set_mode.clone();
+                                        Callback::from(move |_| cb.emit("USB".to_string()))
+                                    }
+                                }>{"USB"}</button>
+                                <button onclick={
+                                    {
+                                        let cb = on_set_mode.clone();
+                                        Callback::from(move |_| cb.emit("LSB".to_string()))
+                                    }
+                                }>{"LSB"}</button>
+                                <button onclick={
+                                    {
+                                        let cb = on_set_mode.clone();
+                                        Callback::from(move |_| cb.emit("CW".to_string()))
+                                    }
+                                }>{"CW"}</button>
+                                <button onclick={
+                                    {
+                                        let cb = on_set_mode.clone();
+                                        Callback::from(move |_| cb.emit("FM".to_string()))
+                                    }
+                                }>{"FM"}</button>
+                                <button onclick={
+                                    {
+                                        let cb = on_set_mode.clone();
+                                        Callback::from(move |_| cb.emit("AM".to_string()))
+                                    }
+                                }>{"AM"}</button>
+                            </div>
+                        </div>
+                        <hr/>
+                        <button onclick={on_test_14062}>{"14.062 CW"}</button>
+                    </div>
+                }
+            } else { html!{} } }
             <table>
                 <thead>
                     <tr>

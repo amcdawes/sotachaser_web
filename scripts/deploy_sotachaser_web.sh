@@ -73,9 +73,7 @@ fi
 echo "Building locally with trunk..."
 trunk build --release
 
-echo "Updating remote git clone (if present) and pushing dist/ to $REMOTE_HOST:$REMOTE_WEB_ROOT"
-ssh -i "$SSH_KEY" "$REMOTE_HOST" "if [ -d \"$REMOTE_APP_DIR\" ] ; then cd $REMOTE_APP_DIR && git pull ; fi"
-
+echo "Pushing dist/ to $REMOTE_HOST:$REMOTE_WEB_ROOT"
 rsync -avz --delete -e "ssh -i $SSH_KEY" dist/ "$REMOTE_HOST:$REMOTE_WEB_ROOT/"
 
 echo "Deploy complete: https://sotachaser.daweslab.com"

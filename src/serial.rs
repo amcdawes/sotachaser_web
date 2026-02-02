@@ -169,6 +169,7 @@ impl SerialManager {
     }
 
     /// Disconnect the serial port and cancel any active reader.
+    #[allow(dead_code)]
     pub async fn disconnect(&self) -> Result<(), JsValue> {
         // Take and cancel the reader under the mutex so we avoid RefCell panics.
         let reader_opt = {
@@ -294,6 +295,7 @@ impl SerialManager {
 pub struct KenwoodDriver;
 
 impl KenwoodDriver {
+    #[allow(dead_code)]
     pub async fn tune(serial: &SerialManager, freq_hz: u64, mode: &str) -> Result<(), JsValue> {
         serial.tune_kenwood_ts570(freq_hz, mode).await
     }

@@ -355,11 +355,9 @@ pub fn app() -> Html {
     let on_vfo_a = {
         let serial = serial.clone();
         let status = status.clone();
-        let response_log = response_log.clone();
         Callback::from(move |_| {
             let serial = serial.clone();
             let status = status.clone();
-            let response_log = response_log.clone();
             spawn_local(async move {
                 match KenwoodDriver::set_vfo_a(&*serial).await {
                     Ok(()) => status.set("VFO A selected".to_string()),
@@ -374,11 +372,9 @@ pub fn app() -> Html {
     let on_vfo_b = {
         let serial = serial.clone();
         let status = status.clone();
-        let response_log = response_log.clone();
         Callback::from(move |_| {
             let serial = serial.clone();
             let status = status.clone();
-            let response_log = response_log.clone();
             spawn_local(async move {
                 match KenwoodDriver::set_vfo_b(&*serial).await {
                     Ok(()) => status.set("VFO B selected".to_string()),
@@ -392,11 +388,9 @@ pub fn app() -> Html {
     let on_set_mode = {
         let serial = serial.clone();
         let status = status.clone();
-        let response_log = response_log.clone();
         Callback::from(move |mode: String| {
             let serial = serial.clone();
             let status = status.clone();
-            let response_log = response_log.clone();
             spawn_local(async move {
                 match KenwoodDriver::set_mode(&*serial, &mode).await {
                     Ok(()) => status.set(format!("Mode set: {}", mode)),

@@ -99,7 +99,7 @@ pub fn app() -> Html {
     let connected = use_state(|| false);
     let serial = use_state(SerialManager::new);
     let min_freq = use_state(|| 7.0_f64);
-    let max_freq = use_state(|| 28.0_f64);
+    let max_freq = use_state(|| 29.7_f64);
     let show_settings = use_state(|| false);
     let raw_cmd = use_state(|| "".to_string());
     let response_log = use_state(Vec::<String>::new);
@@ -110,7 +110,7 @@ pub fn app() -> Html {
         let max_freq = max_freq.clone();
         use_effect_with((), move |_| {
             min_freq.set(load_freq(STORAGE_MIN_FREQ, 7.0));
-            max_freq.set(load_freq(STORAGE_MAX_FREQ, 28.0));
+            max_freq.set(load_freq(STORAGE_MAX_FREQ, 29.7));
             || ()
         });
     }
